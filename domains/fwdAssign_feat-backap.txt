@@ -1,0 +1,112 @@
+
+
+  	let fwdAssign_feat t (l,e) =
+    let domain = t.domain in 
+    let env_vars = t.env_vars in
+    let env_feats = t.env_feats in	
+    let vars = t.vars in 
+	let feats = t.feats in 
+    let rec aux t cs = match t with
+      | Leaf p ->
+        let p' = match domain with 
+          | None -> P.inner env_feats feats cs 
+          | Some domain -> 
+            P.inner env_feats feats (cs@(P.constraints domain)) in
+        if (P.isBot p') then Leaf (P.bot env_vars vars)
+        else Leaf p
+      | Node ((c1,nc1),l1,r1) ->
+	  
+        let lt = aux l1 (c1::cs) in
+		let rt = aux r1 (nc1::cs) in 	
+		
+		let pin1,pin2 = (match domain with 
+          				| None -> P.inner env_feats feats (c1::cs), P.inner env_feats feats (nc1::cs) 
+          				| Some domain -> P.inner env_feats feats ((c1::cs)@(P.constraints domain)), P.inner env_feats feats ((nc1::cs)@(P.constraints domain))) in 
+						
+		Format.fprintf !fmt "\n Enter assign_feat: p_in1 %a : p_in2 %a : c1: %a : nc1: %a\n" P.print pin1 P.print pin2 (C.print feats) c1 (C.print feats) nc1;
+		if (P.isBot pin1) then (
+			Node ((c1,nc1),lt,rt) ) 
+		else (
+		let p1,p2 = (match domain with 
+          				| None -> P.fwdAssign pin1 (l,e), P.fwdAssign pin2 (l,e) 
+						| Some domain -> P.meet domain (P.fwdAssign pin1 (l,e)), P.meet domain (P.fwdAssign pin2 (l,e)) ) in 
+		Format.fprintf !fmt "\n Enter assign_feat: p_1 %a : p_2 %a :\n" P.print p1 P.print p2;
+		let (b1,b2) = (match l with
+    			| A_var l -> (C.var l c1, C.var l nc1)
+				| _ -> (false,false)) in 
+		Format.fprintf !fmt "\n Enter : b1 %b : b2 %b :\n" b1 b2;
+		let dcs = ref [] in 
+		dcs:=(match domain with | None -> [] | Some domain -> P.constraints domain);  
+
+
+		if (b1 && b2) then ( 
+				
+			let p1p2 = P.meet p1 p2 in 
+			if (P.isBot p1p2) then (
+			
+				let ccs1 = ref [] in let ccs2 = ref [] in 
+				(*List.iter (fun c -> if (not (List.mem c !dcs)) then (let nc = C.negate c in dcs:=c::nc::!dcs; if (C.isLeq nc c) then ccs1:=(c,nc)::!ccs1 else ccs1:=(nc,c)::!ccs1)) (P.constraints p1); 		*)
+				Format.fprintf !fmt "\n p1 is bot: %b : p2: %b \n" (P.isBot p1) (P.isBot p2); 
+				(*if (not (P.isBot p1)) then *)
+				List.iter (fun c -> if (not (List.mem c !dcs)) then (let nc = C.negate c in dcs:=c::nc::!dcs; ccs1:=(c,nc)::!ccs1)) (P.constraints p1);
+				(*if (not (P.isBot p2)) then *)
+				List.iter (fun nc -> if (not (List.mem nc !dcs)) then (let c = C.negate nc in ccs2:=(c,nc)::!ccs2)) (P.constraints p2); 
+				List.iter (fun (c,nc) -> Format.fprintf !fmt "\n ccs1: c: %a : nc: %a \n" (C.print feats) c (C.print feats) nc) !ccs1; 
+				List.iter (fun (c,nc) -> Format.fprintf !fmt "\n ccs2: c: %a : nc: %a \n" (C.print feats) c (C.print feats) nc) !ccs2;
+				
+				if ((List.length !ccs1)=1) then (
+					let (cc1,cnc1) = List.hd !ccs1 in 
+					let l = aux l1 (cc1::cs) in
+					if ((List.length !ccs2)=0) then (
+						let r = aux r1 (cnc1::cs) in Format.fprintf !fmt "\n case 1 \n"; 
+						if (P.isLeq p2 p1) then Node ((cc1,cnc1),join_t env_vars vars env_feats feats l r [] domain,Leaf (P.bot env_vars vars)) else Node ((cc1,cnc1),l,r) )
+					else (
+						let (cc2,cnc2) = List.hd !ccs2 in
+						let rl = Leaf (P.bot env_vars vars) in 	
+						let rr = aux r1 (cnc1::cnc2::cs) in Format.fprintf !fmt "\n case 2 \n"; 	
+						Node ((cc1,cnc1),l,Node ((cc2,cnc2),rl,rr)) ) )
+				else (
+					let (cc1,cnc1) = List.hd !ccs1 in 
+					let (cc2,cnc2) = List.hd (List.tl !ccs1) in 
+					let ll = aux l1 (cc1::cc2::cs) in
+					if ((List.length !ccs2)=0) then (
+							let lr = aux r1 (cnc1::cc2::cs) in 
+							let rr = aux r1 (cnc1::cnc2::cs) in Format.fprintf !fmt "\n case 3 \n"; 
+							Format.fprintf !fmt "\n ll: %a : lr: %a : rr: %a \n" (print_tree env_feats feats) ll (print_tree env_feats feats) lr (print_tree env_feats feats) rr;
+							let jj = join_t env_vars vars env_feats feats (join_t env_vars vars env_feats feats ll rr [] domain) lr [] domain in 							
+							Format.fprintf !fmt "\n jj: %a \n" (print_tree env_feats feats) jj;
+							if (P.isLeq p2 p1) 
+							then Node ((cc1,cnc1),Node ((cc2,cnc2),jj,Leaf (P.bot env_vars vars)),Leaf (P.bot env_vars vars)) 
+							else Node ((cc1,cnc1),Node ((cc2,cnc2),ll,lr),rr) )
+					else (
+							let (ccc2,ccnc2) = List.hd !ccs2 in
+							let rl = Leaf (P.bot env_vars vars) in 	
+							let rr = aux r1 (cnc1::ccnc2::cs) in Format.fprintf !fmt "\n case 4 \n";  	
+							Node ((cc1,cnc1),Node ((cc2,cnc2),ll,Leaf (P.bot env_vars vars)),Node ((ccc2,ccnc2),rl,rr)) 
+					)						
+					(*if (List.mem (cc2,cnc2) !ccs2) then (
+						ccs2:=List.filter (fun (c2,nc2) -> not (C.isEq cc1 c2) && not (C.isEq cnc1 nc2)) !ccs2;
+						if ((List.length !ccs2)=0) then (
+							let r = aux r1 (cc1::cnc2::cs) in Format.fprintf !fmt "\n case 5 \n";
+							Node ((cc1,cnc1),Node ((cc2,cnc2),ll,r),Leaf (P.bot env_vars vars)) )
+						else (
+							let (ccc2,ccnc2) = List.hd !ccs2 in
+							let rl = Leaf (P.bot env_vars vars) in 	
+							let rr = aux r1 (cnc1::ccnc2::cs) in Format.fprintf !fmt "\n case 6 \n"; 	
+							Node ((cc1,cnc1),Node ((cc2,cnc2),ll,Node ((cc2,cnc2),rl,rr)),Leaf (P.bot env_vars vars)) )						
+					)	else ( 				
+						let l = aux l1 (c1::cs) in
+						let r = aux r1 (nc1::cs) in 		
+						Node ((c1,nc1),l,r)
+					) *) )  		
+		) else (
+        	let l = aux l1 (c1::cs) in
+			let r = aux r1 (nc1::cs) in 		
+			Node ((c1,nc1),l,r) )  )
+      | _ -> raise (Invalid_argument "fwdAssign_feat:")
+    in { domain = domain;
+      tree = aux t.tree [];
+      env_vars = env_vars;
+	  env_feats = env_feats;
+      vars = vars;
+	  feats = feats }	  	
