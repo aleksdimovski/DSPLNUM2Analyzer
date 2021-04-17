@@ -1,0 +1,151 @@
+
+This documents shows all performance results reported in the paper 
+¨Lifted Static Analysis of Dynamic Program Families by Abstract Interpretation¨.
+
+The reported results are obtained on the machine 
+[Intel Core TM i7-8700 CPU@3.20GHz x 12, 8 GB Memory, 64-bit Ubuntu 18.04.5 LTS]
+
+###############################################################################
+## DSPLNum^2Analyzer --- Lifted Static Analyzer for Dynamic Program Families ## 
+###############################################################################
+
+DSPLNum^2Analyzer is a research prototype lifted static analyzer based on abstract interpretation 
+designed for performing numerical static analysis of dynamic C program families. 
+
+###############################################################################
+### Examples 																###
+###############################################################################
+
+```
+cd DSPLNUM2Analyzer
+```
+All benchmarks from the paper are in "tests" and "spl-tests" subfolders of "DSPLNUM2Analyzer" folder. 
+Enter the folder that contains the tool, and write the following commands. 
+Note that after commands (separated by '|') in square brackets we write the reported times in seconds on our machine,
+and the validity answer to the given assertions.
+Possible validity answers to assertions are: "unreachable", "correct", "erroneous", "i don't know", and "mixed".
+For more detailed description of their meaning and the obtained invariants for each benchmark, we refer to the paper.
+
+The following general command-line options are recognized:
+
+	 -single 							set to perform single-program analysis
+	 -tree								set to perform decision tree-based lifted analysis
+	 -domain boxes|octagons|polyhedra   set the abstract domain (defaults to boxes)
+	 -minimal 							set to print only analysis result
+	 -joinfwd 2                         set the widening delay in forward analysis
+
+###############################################################################
+
+1. Motivating Example (on pp.4)
+"dfamily" example given in Fig.2 (on pp. 4), "Motivating Example" section:
+
+$ ./Main.native -single -domain boxes tests/dfamily-single.c	 	| [0.001], "i don't know"=2
+$  ./Main.native -single -domain polyhedra tests/dfamily-single.c  	|  [0.004], "i don't know"=2
+$  ./Main.native -tree -domain boxes tests/dfamily-tree.c  			|  [0.007], "mixed"=2
+$  ./Main.native -tree -domain polyhedra tests/dfamily-tree.c  		|  [0.011], "mixed"=2
+
+###############################################################################
+
+2. Example 5 (on pp.13)
+
+$ ./Main.native -single -domain polyhedra tests/example5-single.c  	|   [0.001], see invariants at locations [9:], [10:], [11:]
+$ ./Main.native -tree -domain polyhedra tests/example5-tree.c 		|   [0.003], see invariants at locations [9:], [10:], [11:] in Fig.5 on pp.14
+
+###############################################################################
+
+3. Example 8 (on pp. 17)
+
+$ ./Main.native -single -domain polyhedra tests/example8-single.c	  |   [0.004], "i don't know"=1, see invariant at location [17:]
+$ ./Main.native -tree -domain polyhedra tests/example8-tree.c		  |   [0.035], "mixed"=1, see invariant at location [17:] in Fig.8 on pp.18
+
+###############################################################################
+
+4. Benchmarks from Table 2, "Other benchmarks" paragraph
+
+We first present results shown in Table 2 on pp. 22 in the paper,
+since those benchmarks are smaller and less time-consuming.
+For each row, we present results for 1st column (single-program analysis with polyhedra), 
+2nd column (decision-tree lifted analysis with octagons), and 3rd column (decision-tree lifted analysis with polyhedra).
+For more detailed description of the obtained invariants, see the paper (pp. 21-23).
+
+
+* half_2.c
+$ ./Main.native -single -domain polyhedra tests/half_2-single.c	 	| [0.008], "i don't know"=1 | 1st column of Table 2
+$ ./Main.native -tree -domain octagons tests/half_2-tree.c  		| [0.014], "mixed"=1		| 2nd column of Table 2
+$ ./Main.native -tree -domain polyhedra tests/half_2-tree.c  		| [0.017], "mixed"=1		| 3rd column of Table 2
+
+* seq.c
+$ ./Main.native -single -domain polyhedra tests/seq-single.c	  | [0.015], "i don't know"=1
+$ ./Main.native -tree -domain octagons tests/seq-tree.c			  | [0.084], "mixed"=1	
+$ ./Main.native -tree -domain polyhedra tests/seq-tree.c		  | [0.045], "mixed"=1
+
+* sum01*.c
+$ ./Main.native -single -domain polyhedra tests/sum01_bug02-single.c	  | [0.008], "i don't know"=1
+$ ./Main.native -tree -domain octagons tests/sum01_bug02-tree.c			  | [0.009], "mixed"=1	
+$ ./Main.native -tree -domain polyhedra tests/sum01_bug02-tree.c		  | [0.041], "mixed"=1
+$ ./Main.native -tree -domain boxes tests/sum01_bug02-tree.c			  | optionally results for domain="boxes"	| [0.009], "mixed"=1
+
+* count_up_d*.c
+$ ./Main.native -single -domain polyhedra tests/count_up_down-single.c	  | [0.002], "i don't know"=1
+$ ./Main.native -tree -domain octagons tests/count_up_down-tree.c		  | [0.008], "mixed"=1	
+$ ./Main.native -tree -domain polyhedra tests/count_up_down-tree.c		  | [0.011], "mixed"=1
+
+* hhk2008.c
+$ ./Main.native -single -domain polyhedra tests/hhk2008-single.c		  | [0.003], "i don't know"=1
+$ ./Main.native -tree -domain octagons tests/hhk2008-tree.c				  | [0.073], "mixed"=1
+$ ./Main.native -tree -domain polyhedra tests/hhk2008-tree.c			  | [0.032], "mixed"=1
+
+* gsv2008.c
+$ ./Main.native -single -domain polyhedra tests/gsv2008-single.c		  | [0.002], "i don't know"=1
+$ ./Main.native -tree -domain octagons tests/gsv2008-tree.c				  | [0.007], "mixed"=1
+$ ./Main.native -tree -domain polyhedra tests/gsv2008-tree.c			  | [0.015], "mixed"=1
+
+* Mysore.c
+$ ./Main.native -single -domain polyhedra tests/Mysore-single.c			  | [0.0008], "i don't know"=1
+$ ./Main.native -tree -domain octagons tests/Mysore-tree.c				  | [0.002], "mixed"=1
+$ ./Main.native -tree -domain polyhedra tests/Mysore-tree.c				  | [0.004], "mixed"=1
+
+* Copenhagen.c
+$ ./Main.native -single -domain polyhedra tests/Copenhagen-single.c		  | [0.002], "i don't know"=1
+$ ./Main.native -tree -domain octagons tests/Copenhagen-tree.c			  | [0.012], "mixed"=1
+$ ./Main.native -tree -domain polyhedra tests/Copenhagen-tree.c			  | [0.021], "mixed"=1
+
+###############################################################################
+
+5. Benchmarks from Table 1, E-mail system
+
+We now present results shown in Table 1 on pp. 19 in the paper. 
+Since the output is huge, we use "-minimal" option to print out only the analysis result. 
+We send the output in a textual file for more easier inspection.
+For each row, we present results for 1st column (single-program analysis with intervals/boxes), 
+2nd column (decision-tree lifted analysis with boxes and 1 feature), and 3rd column (decision-tree lifted analysis with boxes and 2 features).
+We denote by "mixed"=k ("unreach"=n::"i don't know"=m), the fact that there are 'k' assertions with "mixed" answers, such that each of those
+'k' assertions is "unreachable" in 'n' variants and an "i don't know" answer is obtained in 'm' variants.
+
+
+* e-mail_spec6
+./Main.native -single -domain boxes -minimal spl-tests/email_spec6-single.c > spec6-single.out		| [18.8], "unreach"=6, "correct"=26 | 1st column of Table 1
+./Main.native -tree -domain boxes -minimal spl-tests/email_spec6-feat1.c > spec6-feat1.out			| [23.6], "unreach"=16, "mixed"=16 ("unreach"=1::"correct"=1) | 2nd column of Table 1
+./Main.native -tree -domain boxes -minimal spl-tests/email_spec6-feat2.c > spec6-feat2.out			| [25.2], "unreach"=16, "mixed"=16 ("unreach"=3::"correct"=1) | 3rd column of Table 1
+
+* e-mail_spec8
+./Main.native -single -domain boxes -minimal spl-tests/email_spec8-single.c > spec8-single.out		| [14.6], "unreach"=12, "i don't know"=20 
+./Main.native -tree -domain boxes -minimal spl-tests/email_spec8-feat1.c > spec8-feat1.out			| [19.1], "unreach"=12, "mixed"=20 ("unreach"=1::"i don't know"=1)
+./Main.native -tree -domain boxes -minimal spl-tests/email_spec8-feat2.c > spec8-feat2.out			| [27.7], "unreach"=12, "mixed"=20 ("unreach"=3::"i don't know"=1)
+
+* e-mail_spec11
+./Main.native -single -domain boxes -minimal spl-tests/email_spec11-single.c > spec11-single.out	| [15.2], "unreach"=160, "i don't know"=96 
+./Main.native -tree -domain boxes -minimal spl-tests/email_spec11-feat1.c > spec11-feat1.out		| [24.7], "unreach"=160, "mixed"=96 ("unreach"=1::"i don't know"=1)
+./Main.native -tree -domain boxes -minimal spl-tests/email_spec11-feat2.c > spec11-feat2.out		| [32.1], "unreach"=160, "mixed"=96 ("unreach"=3::"i don't know"=1)
+
+* e-mail_spec27
+./Main.native -single -domain boxes -minimal spl-tests/email_spec27-single.c > spec27-single.out	| [14.5], "unreach"=384, "correct"=64, "i don't know"=64 
+./Main.native -tree -domain boxes -minimal spl-tests/email_spec27-feat1.c > spec27-feat1.out		| [28.4], "unreach"=384, "mixed"=64 ("unreach"=1::"correct"=1), "mixed"=64 ("unreach"=1::"i don't know"=1)
+./Main.native -tree -domain boxes -minimal spl-tests/email_spec27-feat2.c > spec27-feat2.out		| [38.4], "unreach"=384, "mixed"=64 ("unreach"=3::"correct"=1), "mixed"=64 ("unreach"=3::"i don't know"=1)
+
+* e-mail_spec0
+$ ./Main.native -single -domain boxes -minimal spl-tests/email_spec0-single.c > spec0-single.out 	| [16.2], "unreach"=80, "i don't know"=48 
+$ ./Main.native -tree -domain boxes -minimal spl-tests/email_spec0-feat1.c > spec0-feat1.out		| [29.3], "unreach"=80, "mixed"=48 ("unreach"=1::"i don't know"=1) 
+$ ./Main.native -tree -domain boxes -minimal spl-tests/email_spec0-feat2.c > spec0-feat2.out		| [50.7], "unreach"=80, "mixed"=48 ("unreach"=3::"i don't know"=1) 
+
+###############################################################################
